@@ -6,7 +6,7 @@ import { resolveDexscreenerUrl } from '@/lib/dexscreener';
 import { getDb } from '@/lib/firestore';
 import { fetchPumpCoinMetadata } from '@/lib/pumpfun';
 import { getAppUrl } from '@/lib/env';
-import { StreamRecord } from '@/lib/types';
+import { StreamEventRecord, StreamRecord } from '@/lib/types';
 
 const slugSchema = z
   .string()
@@ -52,7 +52,7 @@ function toDateOrNull(value: unknown): Date | null {
   return null;
 }
 
-function hydrateStreamRecord(streamId: string, raw: Record<string, unknown>): StreamRecord {
+export function hydrateStreamRecord(streamId: string, raw: Record<string, unknown>): StreamRecord {
   const overlay = (raw.overlay as Record<string, unknown>) || {};
   const liveStatus = (raw.liveStatus as Record<string, unknown>) || {};
   const kernel = (raw.kernel as Record<string, unknown>) || {};
@@ -250,6 +250,43 @@ export async function getStreamById(streamId: string) {
   }
 
   return hydrateStreamRecord(streamId, streamDoc.data() as Record<string, unknown>);
+}
+
+export async function getAllStreams() {
+  const snapshot = await getDb().collection('streams').get();
+  return snapshot.docs.map((doc) => hydrateStreamRecord(doc.id, doc.data() as Record<string, unknown>));
+}
+
+export async function getLiveStreams() {
+  const snapshot = await getDb()
+    .collection('streams')
+    .where('liveStatus.isLive', '==', true)
+    .orderBy('liveStatus.viewers', 'desc')
+    .get();
+
+  return snapshot.docs.map((doc) => hydrateStreamRecord(doc.id, doc.data() as Record<string, unknown>));
+}
+
+export async function getRecentStreamEvents(streamId: string, limitCount = 20): Promise<StreamEventRecord[]> {
+  const snapshot = await getDb()
+    .collection('streams')
+    .doc(streamId)
+    .collection('events')
+    .orderBy('createdAt', 'desc')
+    .limit(limitCount)
+    .get();
+
+  return snapshot.docs.map((doc) => {
+    const raw = doc.data() as Record<string, unknown>;
+
+    return {
+      eventId: doc.id,
+      type: String(raw.type || 'event'),
+      message: String(raw.message || raw.type || doc.id),
+      createdAt: toDateOrNull(raw.createdAt) || new Date(0),
+      metadata: (raw.metadata as StreamEventRecord['metadata']) || null,
+    };
+  });
 }
 
 export async function touchStreamUpdatedAt(streamId: string) {

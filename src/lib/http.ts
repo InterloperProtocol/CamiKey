@@ -21,3 +21,7 @@ export function notFound(message: string) {
 export function serverError(message: string) {
   return NextResponse.json({ error: message }, { status: 500 });
 }
+
+export function unauthorized(message: string) {
+  return NextResponse.json({ error: message }, { status: 401 });
+}
