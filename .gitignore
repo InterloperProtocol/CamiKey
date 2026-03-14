@@ -1,0 +1,9 @@
+.next
+node_modules
+coverage
+.env
+.env.local
+.env.*.local
+apphosting.local.yaml
+*.tsbuildinfo
+firebase-debug.log

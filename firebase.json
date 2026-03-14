@@ -1,0 +1,7 @@
+{
+  "emulators": {
+    "apphosting": {
+      "port": 5011
+    }
+  }
+}
