@@ -35,6 +35,70 @@ export interface RegisterStreamResult {
   overlayUrl: string;
 }
 
+function toDateOrNull(value: unknown): Date | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value === 'object' && value !== null && 'toDate' in value) {
+    const candidate = value as { toDate: () => Date };
+    return candidate.toDate();
+  }
+
+  return null;
+}
+
+function hydrateStreamRecord(streamId: string, raw: Record<string, unknown>): StreamRecord {
+  const overlay = (raw.overlay as Record<string, unknown>) || {};
+  const liveStatus = (raw.liveStatus as Record<string, unknown>) || {};
+  const kernel = (raw.kernel as Record<string, unknown>) || {};
+
+  return {
+    streamId,
+    slug: String(raw.slug || ''),
+    deployerWallet: String(raw.deployerWallet || ''),
+    streamerCoinMint: String(raw.streamerCoinMint || ''),
+    streamerCoinName: String(raw.streamerCoinName || ''),
+    streamerCoinSymbol: String(raw.streamerCoinSymbol || ''),
+    defaultDexscreenerUrl: String(raw.defaultDexscreenerUrl || ''),
+    createdAt: toDateOrNull(raw.createdAt) || new Date(0),
+    updatedAt: toDateOrNull(raw.updatedAt) || new Date(0),
+    overlay: {
+      overlayKeyHash: String(overlay.overlayKeyHash || ''),
+      stateNonce: Number(overlay.stateNonce || 0),
+      lastHeartbeatAt: toDateOrNull(overlay.lastHeartbeatAt),
+      lastOverlaySessionId: overlay.lastOverlaySessionId ? String(overlay.lastOverlaySessionId) : null,
+      verifiedAt: toDateOrNull(overlay.verifiedAt),
+      lastVerifiedOverlaySessionId: overlay.lastVerifiedOverlaySessionId
+        ? String(overlay.lastVerifiedOverlaySessionId)
+        : null,
+      verifyNonce: overlay.verifyNonce ? String(overlay.verifyNonce) : null,
+      verifyNonceRequestedAt: toDateOrNull(overlay.verifyNonceRequestedAt),
+      verifyNonceExpiresAt: toDateOrNull(overlay.verifyNonceExpiresAt),
+    },
+    liveStatus: {
+      isLive: Boolean(liveStatus.isLive),
+      viewers: Number(liveStatus.viewers || 0),
+      lastSeenAt: toDateOrNull(liveStatus.lastSeenAt),
+      lastIndexedAt: toDateOrNull(liveStatus.lastIndexedAt),
+    },
+    kernel: {
+      defaultMint: String(kernel.defaultMint || ''),
+      currentMint: String(kernel.currentMint || ''),
+      currentDexscreenerUrl: String(kernel.currentDexscreenerUrl || ''),
+      currentLeaseId: kernel.currentLeaseId ? String(kernel.currentLeaseId) : null,
+      currentLeaseTier: (kernel.currentLeaseTier as StreamRecord['kernel']['currentLeaseTier']) || null,
+      currentLeaseStartedAt: toDateOrNull(kernel.currentLeaseStartedAt),
+      currentLeaseEndsAt: toDateOrNull(kernel.currentLeaseEndsAt),
+      preemptCooldownUntil: toDateOrNull(kernel.preemptCooldownUntil),
+    },
+  };
+}
+
 export function normalizeSlug(input: string): string {
   return slugSchema.parse(input.toLowerCase());
 }
@@ -176,10 +240,16 @@ export async function getStreamBySlug(slug: string) {
     return null;
   }
 
-  return {
-    streamId,
-    ...(streamDoc.data() as Omit<StreamRecord, 'streamId'>),
-  } as StreamRecord;
+  return hydrateStreamRecord(streamId, streamDoc.data() as Record<string, unknown>);
+}
+
+export async function getStreamById(streamId: string) {
+  const streamDoc = await getDb().collection('streams').doc(streamId).get();
+  if (!streamDoc.exists) {
+    return null;
+  }
+
+  return hydrateStreamRecord(streamId, streamDoc.data() as Record<string, unknown>);
 }
 
 export async function touchStreamUpdatedAt(streamId: string) {

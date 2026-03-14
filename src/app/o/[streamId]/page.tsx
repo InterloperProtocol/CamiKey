@@ -1,20 +1,38 @@
-export default async function OverlayPlaceholderPage({
+import { OverlayClient } from '@/components/overlay-client';
+import { isOverlayKeyValid } from '@/lib/overlay';
+import { getStreamById } from '@/lib/streams';
+
+export default async function OverlayPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ streamId: string }>;
+  searchParams: Promise<{ k?: string }>;
 }) {
   const { streamId } = await params;
+  const { k } = await searchParams;
+  const stream = await getStreamById(streamId);
+
+  if (!stream || !k || !isOverlayKeyValid(stream, k)) {
+    return (
+      <main className="shell">
+        <div className="card panel stack">
+          <div className="eyebrow">Overlay Access</div>
+          <h1 style={{ fontSize: '2rem', margin: '10px 0 12px' }}>Invalid overlay key.</h1>
+          <p className="subtitle">
+            This OBS Browser Source needs the exact overlay URL returned during registration.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="shell">
-      <div className="card panel stack">
-        <div className="eyebrow">Phase 2</div>
-        <h1 style={{ fontSize: '2rem', margin: '10px 0 12px' }}>Overlay runtime is being wired up.</h1>
-        <p className="subtitle">
-          The verified OBS Browser Source overlay for <code className="mono">{streamId}</code> will
-          be added in the next phase with state polling, heartbeat, and one-click verification.
-        </p>
-      </div>
-    </main>
+    <OverlayClient
+      initialChartUrl={stream.kernel.currentDexscreenerUrl}
+      initialStateNonce={stream.overlay.stateNonce}
+      overlayKey={k}
+      streamId={streamId}
+    />
   );
 }

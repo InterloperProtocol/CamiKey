@@ -279,6 +279,46 @@ input {
   font-family: 'Courier New', monospace;
 }
 
+.overlay-root {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 12px;
+}
+
+.overlay-slot {
+  background: #0d0f10;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
+  height: min(360px, calc(100vh - 24px));
+  max-width: 640px;
+  overflow: hidden;
+  position: relative;
+  width: min(640px, calc(100vw - 24px));
+}
+
+.overlay-frame {
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.overlay-badge {
+  background: rgba(17, 19, 21, 0.82);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  left: 12px;
+  letter-spacing: 0.06em;
+  padding: 8px 10px;
+  position: absolute;
+  top: 12px;
+  z-index: 2;
+}
+
 @media (max-width: 900px) {
   .hero {
     grid-template-columns: 1fr;
