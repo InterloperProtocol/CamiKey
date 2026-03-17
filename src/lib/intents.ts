@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createId } from '@/lib/ids';
-import { getLeaseById, processStreamKernel } from '@/lib/kernel';
+import { getLeaseById, needsKernelTick, processStreamKernel } from '@/lib/kernel';
 import { resolveDexscreenerUrl } from '@/lib/dexscreener';
 import {
   createDepositWallet,
@@ -10,7 +10,6 @@ import {
 } from '@/lib/payments';
 import { getDb } from '@/lib/firestore';
 import { getPricing, getPricingTier } from '@/lib/pricing';
-import { maybeRefreshLiveIndex } from '@/lib/live-index';
 import { getStreamById } from '@/lib/streams';
 import { assertPurchaseAllowed } from '@/lib/gating';
 import { EventMetadata, IntentRecord, PricingTier } from '@/lib/types';
@@ -20,6 +19,8 @@ const createIntentSchema = z.object({
   tier: z.enum(['BASE', 'PRIORITY']),
   buyerMint: z.string().trim().min(32),
 });
+
+export const PAYOUT_PROCESSING_TIMEOUT_MS = 60_000;
 
 function toDateOrNull(value: unknown): Date | null {
   if (!value) {
@@ -65,9 +66,14 @@ export function hydrateIntentRecord(intentId: string, raw: Record<string, unknow
     feeLamports: Number(raw.feeLamports || 0),
     forwardTxSignature: raw.forwardTxSignature ? String(raw.forwardTxSignature) : null,
     payoutFailureReason: raw.payoutFailureReason ? String(raw.payoutFailureReason) : null,
+    payoutProcessingAt: toDateOrNull(raw.payoutProcessingAt),
     createdAt: toDateOrNull(raw.createdAt) || new Date(0),
     updatedAt: toDateOrNull(raw.updatedAt) || new Date(0),
   };
+}
+
+export function isPayoutProcessingStale(processingAt: Date | null, now = Date.now()) {
+  return Boolean(processingAt && now - processingAt.getTime() >= PAYOUT_PROCESSING_TIMEOUT_MS);
 }
 
 export async function getIntentById(intentId: string) {
@@ -88,13 +94,7 @@ export async function createIntent(input: z.infer<typeof createIntentSchema>) {
     throw new Error('Stream not found.');
   }
 
-  await maybeRefreshLiveIndex();
-  const refreshedStream = await getStreamById(parsed.streamId);
-  if (!refreshedStream) {
-    throw new Error('Stream not found.');
-  }
-
-  assertPurchaseAllowed(refreshedStream, now.getTime());
+  assertPurchaseAllowed(stream, now.getTime());
 
   const pricingSnapshot = getPricing(now);
   const pricing = getPricingTier(parsed.tier, now);
@@ -112,8 +112,8 @@ export async function createIntent(input: z.infer<typeof createIntentSchema>) {
     .doc(intentId)
     .set({
       intentId,
-      streamId: refreshedStream.streamId,
-      slug: refreshedStream.slug,
+      streamId: stream.streamId,
+      slug: stream.slug,
       tier: parsed.tier,
       buyerMint: parsed.buyerMint,
       sponsoredDexscreenerUrl,
@@ -136,13 +136,14 @@ export async function createIntent(input: z.infer<typeof createIntentSchema>) {
       feeLamports: 0,
       forwardTxSignature: null,
       payoutFailureReason: null,
+      payoutProcessingAt: null,
       createdAt: now,
       updatedAt: now,
     });
 
   await getDb()
     .collection('streams')
-    .doc(refreshedStream.streamId)
+    .doc(stream.streamId)
     .collection('events')
     .doc(`intent_${intentId}_created`)
     .set({
@@ -158,8 +159,8 @@ export async function createIntent(input: z.infer<typeof createIntentSchema>) {
 
   return {
     intentId,
-    streamId: refreshedStream.streamId,
-    slug: refreshedStream.slug,
+    streamId: stream.streamId,
+    slug: stream.slug,
     tier: parsed.tier,
     amountSol: pricing.amountSol,
     amountLamports: pricing.amountLamports,
@@ -338,14 +339,12 @@ export async function pollIntentStatus(intentId: string) {
     return null;
   }
 
-  if (intent.status === 'PENDING_PAYMENT' && intent.expiresAt.getTime() <= Date.now()) {
-    intent = await expireIntent(intentId);
-  }
-
   if (intent && intent.status === 'PENDING_PAYMENT') {
     const observation = await observeDepositPayment(intent.depositAddress, intent.amountLamports);
     if (observation.paid) {
       intent = await confirmIntentPayment(intentId, observation.observedLamports, observation.signature);
+    } else if (intent.expiresAt.getTime() <= Date.now()) {
+      intent = await expireIntent(intentId);
     }
   }
 
@@ -362,10 +361,8 @@ export async function pollIntentStatus(intentId: string) {
   }
 
   const lease = intent.leaseId ? await getLeaseById(intent.leaseId) : null;
-  if (
-    lease &&
-    (lease.status === 'QUEUED' || (lease.status === 'ACTIVE' && lease.endsAt && lease.endsAt.getTime() <= Date.now()))
-  ) {
+  const stream = await getStreamById(intent.streamId);
+  if (stream && needsKernelTick(stream)) {
     await processStreamKernel(intent.streamId);
     const refreshedIntent = (await getIntentById(intentId)) || intent;
     const refreshedLease = refreshedIntent.leaseId ? await getLeaseById(refreshedIntent.leaseId) : null;
@@ -394,25 +391,45 @@ export async function ensureIntentPayoutForwarded(intentId: string) {
 
     const intent = hydrateIntentRecord(snapshot.id, snapshot.data() as Record<string, unknown>);
     if (intent.status !== 'CONFIRMED') {
-      return intent;
+      return {
+        intent,
+        shouldProcess: false,
+      };
     }
 
-    if (intent.payoutStatus === 'FORWARDED' || intent.payoutStatus === 'PROCESSING') {
-      return intent;
+    if (intent.payoutStatus === 'FORWARDED') {
+      return {
+        intent,
+        shouldProcess: false,
+      };
     }
 
+    if (intent.payoutStatus === 'PROCESSING' && !isPayoutProcessingStale(intent.payoutProcessingAt)) {
+      return {
+        intent,
+        shouldProcess: false,
+      };
+    }
+
+    const processingAt = new Date();
     transaction.set(
       intentRef,
       {
         payoutStatus: 'PROCESSING',
-        updatedAt: new Date(),
+        payoutProcessingAt: processingAt,
+        updatedAt: processingAt,
       },
       { merge: true },
     );
 
     return {
-      ...intent,
-      payoutStatus: 'PROCESSING' as const,
+      intent: {
+        ...intent,
+        payoutStatus: 'PROCESSING' as const,
+        payoutProcessingAt: processingAt,
+        updatedAt: processingAt,
+      },
+      shouldProcess: true,
     };
   });
 
@@ -420,19 +437,19 @@ export async function ensureIntentPayoutForwarded(intentId: string) {
     return null;
   }
 
-  if (claimed.status !== 'CONFIRMED' || claimed.payoutStatus === 'FORWARDED') {
-    return claimed;
+  if (!claimed.shouldProcess) {
+    return claimed.intent;
   }
 
-  const stream = await getStreamById(claimed.streamId);
+  const stream = await getStreamById(claimed.intent.streamId);
   if (!stream) {
     throw new Error('Stream not found for payout forwarding.');
   }
 
   try {
     const payout = await forwardDepositToRecipients({
-      depositSecretCiphertext: claimed.depositSecretCiphertext,
-      grossLamports: claimed.depositObservedLamports || claimed.amountLamports,
+      depositSecretCiphertext: claimed.intent.depositSecretCiphertext,
+      grossLamports: claimed.intent.depositObservedLamports || claimed.intent.amountLamports,
       streamerWallet: stream.deployerWallet,
     });
 
@@ -444,6 +461,7 @@ export async function ensureIntentPayoutForwarded(intentId: string) {
         treasuryPayoutLamports: payout.treasuryPayoutLamports,
         feeLamports: payout.feeLamports,
         payoutFailureReason: null,
+        payoutProcessingAt: null,
         updatedAt: new Date(),
       },
       { merge: true },
@@ -451,7 +469,7 @@ export async function ensureIntentPayoutForwarded(intentId: string) {
 
     await getDb()
       .collection('streams')
-      .doc(claimed.streamId)
+      .doc(claimed.intent.streamId)
       .collection('events')
       .doc(`intent_${intentId}_forwarded`)
       .set({
@@ -473,6 +491,7 @@ export async function ensureIntentPayoutForwarded(intentId: string) {
       {
         payoutStatus: 'FAILED',
         payoutFailureReason: message,
+        payoutProcessingAt: null,
         updatedAt: new Date(),
       },
       { merge: true },
@@ -480,7 +499,7 @@ export async function ensureIntentPayoutForwarded(intentId: string) {
 
     await getDb()
       .collection('streams')
-      .doc(claimed.streamId)
+      .doc(claimed.intent.streamId)
       .collection('events')
       .doc(`intent_${intentId}_forward_failed`)
       .set({

@@ -4,6 +4,7 @@ import { createId } from '@/lib/ids';
 import { generateSecretToken, sha256Hex } from '@/lib/crypto';
 import { resolveDexscreenerUrl } from '@/lib/dexscreener';
 import { getDb } from '@/lib/firestore';
+import { isLiveFresh } from '@/lib/gating';
 import { fetchPumpCoinMetadata } from '@/lib/pumpfun';
 import { getAppUrl } from '@/lib/env';
 import { StreamEventRecord, StreamRecord } from '@/lib/types';
@@ -95,6 +96,7 @@ export function hydrateStreamRecord(streamId: string, raw: Record<string, unknow
       currentLeaseStartedAt: toDateOrNull(kernel.currentLeaseStartedAt),
       currentLeaseEndsAt: toDateOrNull(kernel.currentLeaseEndsAt),
       preemptCooldownUntil: toDateOrNull(kernel.preemptCooldownUntil),
+      nextEvaluationAt: toDateOrNull(kernel.nextEvaluationAt),
     },
   };
 }
@@ -183,6 +185,7 @@ export async function registerStream(input: RegisterStreamInput): Promise<Regist
         currentLeaseStartedAt: null,
         currentLeaseEndsAt: null,
         preemptCooldownUntil: null,
+        nextEvaluationAt: null,
       },
     };
 
@@ -199,6 +202,7 @@ export async function registerStream(input: RegisterStreamInput): Promise<Regist
       'kernel.currentLeaseStartedAt': null,
       'kernel.currentLeaseEndsAt': null,
       'kernel.preemptCooldownUntil': null,
+      'kernel.nextEvaluationAt': null,
     });
     transaction.set(slugRef, {
       slug,
@@ -257,10 +261,10 @@ export async function getAllStreams() {
   return snapshot.docs.map((doc) => hydrateStreamRecord(doc.id, doc.data() as Record<string, unknown>));
 }
 
-export async function getLiveStreams() {
+export async function getLiveStreams(now = Date.now()) {
   const streams = await getAllStreams();
   return streams
-    .filter((stream) => stream.liveStatus.isLive)
+    .filter((stream) => isLiveFresh(stream, now))
     .sort((left, right) => right.liveStatus.viewers - left.liveStatus.viewers);
 }
 

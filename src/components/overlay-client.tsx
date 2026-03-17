@@ -141,7 +141,7 @@ export function OverlayClient({
     <div className="overlay-root">
       <div className="overlay-slot">
         <div className="overlay-badge">(i) Ad</div>
-        <iframe className="overlay-frame" key={chartUrl} src={chartUrl} title="CAMIKey Overlay Chart" />
+        <iframe className="overlay-frame" key={chartUrl} src={chartUrl} title="CAMIUP Overlay Chart" />
       </div>
     </div>
   );

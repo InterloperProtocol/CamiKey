@@ -1,54 +1,42 @@
 import Link from 'next/link';
 import { TopNav } from '@/components/top-nav';
 
+const REVENUE_WALLET = 'D1CRgh1Ty3yjDwN9CkwtsRWKmsmKQ2BbRbtKvCTfAN8Z';
+
 export default function HomePage() {
   return (
     <main className="shell">
       <TopNav />
 
-      <section className="hero">
-        <div className="card panel">
-          <div className="eyebrow">Scope Locked</div>
-          <h1 className="title">Chart sponsorships for Pump.fun livestreams.</h1>
-          <p className="subtitle">
-            CAMIKey only swaps Dexscreener charts inside an OBS Browser Source overlay. No plugins,
-            no banners, no videos, and no non-Pump streams.
-          </p>
-          <div className="pill-row">
-            <span className="pill">BASE: 0.04 SOL / 120s</span>
-            <span className="pill">PRIORITY: 0.10 SOL / 600s</span>
-            <span className="pill">Overlay verify every 12h</span>
-            <span className="pill">Live-only purchase gating</span>
-          </div>
-          <div className="button-row" style={{ marginTop: 28 }}>
-            <Link className="button" href="/start">
-              Register a stream
-            </Link>
-            <Link className="button secondary" href="/ads">
-              Browse live streams
-            </Link>
-          </div>
-        </div>
+      <section className="hero hero-home">
+        <div className="card panel stack hero-copy">
+          <div className="eyebrow">Social Futures</div>
+          <h1 className="title">Creator Attention Marketplace Interface</h1>
+          <p className="subtitle">Underwriting Social Capital</p>
+          <p className="subtitle">Capital Allocation Management Interface</p>
 
-        <div className="card panel stack">
-          <div>
-            <div className="eyebrow">What We Enforce</div>
-            <h2 style={{ fontSize: '1.7rem', margin: '10px 0 12px' }}>Only live, verified overlays can sell placements.</h2>
+          <div className="hero-actions">
+            <Link className="button" href="/marketplace">
+              Open Marketplace
+            </Link>
+            <Link className="button secondary" href="/start">
+              Streamer Registration
+            </Link>
+            <Link className="button secondary" href="/advertisers">
+              Advertisers
+            </Link>
           </div>
+
           <dl className="detail-list">
-            <div className="detail">
-              <dt>Default chart</dt>
-              <dd>Streamer coin mint on Dexscreener.</dd>
-            </div>
-            <div className="detail">
-              <dt>Sponsored swap</dt>
-              <dd>Buyer supplies only the token mint. CAMIKey resolves the Dexscreener chart URL.</dd>
-            </div>
-            <div className="detail">
-              <dt>Payments</dt>
-              <dd>Unique deposit address per intent, then automatic 90/10 forwarding after confirmation.</dd>
+            <div className="detail wallet-card">
+              <dt>Revenue wallet</dt>
+              <dd className="mono">{REVENUE_WALLET}</dd>
             </div>
           </dl>
+        </div>
+
+        <div className="hero-visual">
+          <img alt="Social Futures animation" className="hero-gif" src="/social-futures.gif" />
         </div>
       </section>
     </main>

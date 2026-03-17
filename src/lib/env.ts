@@ -1,4 +1,5 @@
 const FALLBACK_APP_URL = 'http://localhost:3000';
+const DEFAULT_PLATFORM_TREASURY = 'D1CRgh1Ty3yjDwN9CkwtsRWKmsmKQ2BbRbtKvCTfAN8Z';
 
 export function getAppUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || FALLBACK_APP_URL;
@@ -13,11 +14,7 @@ export function getSolanaRpcUrl(): string {
 }
 
 export function getPlatformTreasury(): string {
-  const treasury = process.env.PLATFORM_TREASURY;
-  if (!treasury) {
-    throw new Error('PLATFORM_TREASURY is required');
-  }
-  return treasury;
+  return process.env.PLATFORM_TREASURY || DEFAULT_PLATFORM_TREASURY;
 }
 
 export function getPaymentEncryptionKey(): string {
@@ -30,4 +27,10 @@ export function getPaymentEncryptionKey(): string {
 
 export function getCronSecret(): string | undefined {
   return process.env.CRON_SECRET;
+}
+
+export function getSchedulerSweepLimit(): number {
+  const raw = process.env.SCHEDULER_SWEEP_LIMIT;
+  const parsed = raw ? Number(raw) : 50;
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 50;
 }

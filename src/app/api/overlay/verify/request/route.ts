@@ -18,9 +18,10 @@ export async function POST(request: Request) {
     return notFound('Stream not found.');
   }
 
-  const challenge = await createVerifyChallenge(parsed.data.streamId);
+  const challenge = await createVerifyChallenge(stream);
   return ok({
     status: 'pending',
     expiresAt: challenge.expiresAt.toISOString(),
+    reused: challenge.reused,
   });
 }

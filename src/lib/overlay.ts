@@ -76,14 +76,27 @@ export async function clearExpiredVerifyNonceIfNeeded(stream: StreamRecord, now 
   };
 }
 
-export async function createVerifyChallenge(streamId: string) {
-  const now = new Date();
+export async function createVerifyChallenge(
+  stream: Pick<StreamRecord, 'streamId' | 'overlay'>,
+  now = new Date(),
+) {
+  if (
+    stream.overlay.verifyNonce &&
+    stream.overlay.verifyNonceExpiresAt &&
+    stream.overlay.verifyNonceExpiresAt.getTime() > now.getTime()
+  ) {
+    return {
+      verifyNonce: stream.overlay.verifyNonce,
+      expiresAt: stream.overlay.verifyNonceExpiresAt,
+      reused: true,
+    };
+  }
+
   const expiresAt = new Date(now.getTime() + VERIFY_WINDOW_MS);
   const verifyNonce = generateSecretToken(18);
-
   await getDb()
     .collection('streams')
-    .doc(streamId)
+    .doc(stream.streamId)
     .update({
       'overlay.verifyNonce': verifyNonce,
       'overlay.verifyNonceRequestedAt': now,
@@ -95,6 +108,7 @@ export async function createVerifyChallenge(streamId: string) {
   return {
     verifyNonce,
     expiresAt,
+    reused: false,
   };
 }
 

@@ -1,8 +1,8 @@
 import '@/app/globals.css';
 
 export const metadata = {
-  title: 'CAMIKey',
-  description: 'Dexscreener-only chart sponsorship for Pump.fun livestream overlays.',
+  title: 'CAMIUP',
+  description: 'Creator Attention Marketplace Interface for Social Futures.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

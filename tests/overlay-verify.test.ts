@@ -44,6 +44,7 @@ function makeStream(overrides: Partial<StreamRecord> = {}): StreamRecord {
       currentLeaseStartedAt: null,
       currentLeaseEndsAt: null,
       preemptCooldownUntil: null,
+      nextEvaluationAt: null,
       ...(overrides.kernel || {}),
     },
     ...overrides,

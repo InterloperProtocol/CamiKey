@@ -9,6 +9,7 @@ const DEFAULT_INPUT = {
 describe('lease kernel', () => {
   it('keeps an active BASE lease running before the guaranteed window is met', () => {
     const now = new Date('2026-03-13T12:01:00.000Z');
+    const expectedPreemptAt = new Date('2026-03-13T12:01:30.000Z');
     const resolution = evaluateLeaseQueue({
       ...DEFAULT_INPUT,
       now,
@@ -42,6 +43,7 @@ describe('lease kernel', () => {
     expect(resolution.action).toBe('KEEP');
     expect(resolution.changed).toBe(false);
     expect(resolution.nextLeaseId).toBe('lease_base');
+    expect(resolution.nextEvaluationAt?.toISOString()).toBe(expectedPreemptAt.toISOString());
   });
 
   it('lets a PRIORITY lease preempt BASE after 120 seconds and sets cooldown', () => {
@@ -116,6 +118,7 @@ describe('lease kernel', () => {
 
     expect(resolution.action).toBe('KEEP');
     expect(resolution.nextLeaseId).toBe('lease_priority_active');
+    expect(resolution.nextEvaluationAt?.toISOString()).toBe('2026-03-13T12:10:00.000Z');
   });
 
   it('reverts to the streamer chart when the queue is empty and the active lease has expired', () => {
@@ -142,5 +145,42 @@ describe('lease kernel', () => {
     expect(resolution.action).toBe('REVERT');
     expect(resolution.completedLeaseId).toBe('lease_base');
     expect(resolution.nextMint).toBe('streamer-mint');
+    expect(resolution.nextEvaluationAt).toBeNull();
+  });
+
+  it('waits for the preempt cooldown before reevaluating a queued PRIORITY lease', () => {
+    const now = new Date('2026-03-13T12:03:00.000Z');
+    const resolution = evaluateLeaseQueue({
+      ...DEFAULT_INPUT,
+      now,
+      preemptCooldownUntil: new Date('2026-03-13T12:04:00.000Z'),
+      leases: [
+        {
+          leaseId: 'lease_base',
+          tier: 'BASE',
+          buyerMint: 'buyer-one',
+          sponsoredDexscreenerUrl: 'https://dexscreener.com/solana/buyer-one',
+          durationSeconds: 300,
+          status: 'ACTIVE',
+          queuedAt: new Date('2026-03-13T12:00:00.000Z'),
+          activatedAt: new Date('2026-03-13T12:00:00.000Z'),
+          endsAt: new Date('2026-03-13T12:05:00.000Z'),
+        },
+        {
+          leaseId: 'lease_priority',
+          tier: 'PRIORITY',
+          buyerMint: 'buyer-two',
+          sponsoredDexscreenerUrl: 'https://dexscreener.com/solana/buyer-two',
+          durationSeconds: 600,
+          status: 'QUEUED',
+          queuedAt: new Date('2026-03-13T12:00:30.000Z'),
+          activatedAt: null,
+          endsAt: null,
+        },
+      ],
+    });
+
+    expect(resolution.action).toBe('KEEP');
+    expect(resolution.nextEvaluationAt?.toISOString()).toBe('2026-03-13T12:04:00.000Z');
   });
 });

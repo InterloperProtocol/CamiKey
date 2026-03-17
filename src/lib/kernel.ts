@@ -30,7 +30,10 @@ export interface KernelResolution {
   nextLeaseStartedAt: Date | null;
   nextLeaseEndsAt: Date | null;
   nextPreemptCooldownUntil: Date | null;
+  nextEvaluationAt: Date | null;
 }
+
+type KernelResolutionDraft = Omit<KernelResolution, 'nextEvaluationAt'>;
 
 function toDateOrNull(value: unknown): Date | null {
   if (!value) {
@@ -102,6 +105,90 @@ function getLeaseEndAt(lease: KernelLeaseCandidate): Date | null {
   return new Date(lease.activatedAt.getTime() + lease.durationSeconds * 1000);
 }
 
+function getLeaseStartedAt(lease: KernelLeaseCandidate): Date {
+  return lease.activatedAt || lease.queuedAt;
+}
+
+function buildPostResolutionLeases(
+  leases: KernelLeaseCandidate[],
+  resolution: KernelResolutionDraft,
+): KernelLeaseCandidate[] {
+  return leases
+    .map((lease) => {
+      if (resolution.completedLeaseId && lease.leaseId === resolution.completedLeaseId) {
+        const status: KernelLeaseCandidate['status'] =
+          resolution.preemptedLeaseId === lease.leaseId ? 'PREEMPTED' : 'COMPLETED';
+        return {
+          ...lease,
+          status,
+        };
+      }
+
+      if (resolution.activatedLeaseId && lease.leaseId === resolution.activatedLeaseId) {
+        const status: KernelLeaseCandidate['status'] = 'ACTIVE';
+        return {
+          ...lease,
+          status,
+          activatedAt: resolution.nextLeaseStartedAt,
+          endsAt: resolution.nextLeaseEndsAt,
+        };
+      }
+
+      return lease;
+    })
+    .filter((lease): lease is KernelLeaseCandidate => lease.status === 'ACTIVE' || lease.status === 'QUEUED');
+}
+
+function getNextEvaluationAt(
+  leases: KernelLeaseCandidate[],
+  preemptCooldownUntil: Date | null,
+  now: Date,
+): Date | null {
+  const active = leases.find((lease) => lease.status === 'ACTIVE') || null;
+  const queued = leases
+    .filter((lease) => lease.status === 'QUEUED')
+    .sort((left, right) => left.queuedAt.getTime() - right.queuedAt.getTime());
+
+  if (!active) {
+    return queued.length > 0 ? now : null;
+  }
+
+  const activeEndsAt = getLeaseEndAt(active);
+  if (!activeEndsAt || activeEndsAt.getTime() <= now.getTime()) {
+    return now;
+  }
+
+  let nextEvaluationAt = activeEndsAt;
+  const queuedPriority = queued.find((lease) => lease.tier === 'PRIORITY') || null;
+  if (active.tier === 'BASE' && queuedPriority) {
+    const guaranteedAt = new Date(getLeaseStartedAt(active).getTime() + MINIMUM_GUARANTEED_DISPLAY_MS);
+    const cooldownReadyAt =
+      preemptCooldownUntil && preemptCooldownUntil.getTime() > now.getTime() ? preemptCooldownUntil : now;
+    const preemptAt =
+      guaranteedAt.getTime() > cooldownReadyAt.getTime() ? guaranteedAt : cooldownReadyAt;
+
+    if (preemptAt.getTime() < nextEvaluationAt.getTime()) {
+      nextEvaluationAt = preemptAt;
+    }
+  }
+
+  return nextEvaluationAt;
+}
+
+function withNextEvaluation(
+  input: Parameters<typeof evaluateLeaseQueue>[0],
+  resolution: KernelResolutionDraft,
+): KernelResolution {
+  return {
+    ...resolution,
+    nextEvaluationAt: getNextEvaluationAt(
+      buildPostResolutionLeases(input.leases, resolution),
+      resolution.nextPreemptCooldownUntil,
+      input.now,
+    ),
+  };
+}
+
 export function evaluateLeaseQueue(input: {
   defaultMint: string;
   defaultDexscreenerUrl: string;
@@ -130,7 +217,7 @@ export function evaluateLeaseQueue(input: {
         nowMs - activeStartedAt >= MINIMUM_GUARANTEED_DISPLAY_MS &&
         cooldownReady
       ) {
-        return {
+        return withNextEvaluation(input, {
           changed: true,
           action: 'ACTIVATE',
           completedLeaseId: active.leaseId,
@@ -143,10 +230,10 @@ export function evaluateLeaseQueue(input: {
           nextLeaseStartedAt: input.now,
           nextLeaseEndsAt: new Date(nowMs + oldestQueuedPriority.durationSeconds * 1000),
           nextPreemptCooldownUntil: new Date(nowMs + PREEMPT_COOLDOWN_MS),
-        };
+        });
       }
 
-      return {
+      return withNextEvaluation(input, {
         changed: false,
         action: 'KEEP',
         completedLeaseId: null,
@@ -159,13 +246,13 @@ export function evaluateLeaseQueue(input: {
         nextLeaseStartedAt: active.activatedAt,
         nextLeaseEndsAt: activeEndsAt,
         nextPreemptCooldownUntil: input.preemptCooldownUntil,
-      };
+      });
     }
   }
 
   const nextQueued = queued[0] || null;
   if (nextQueued) {
-    return {
+    return withNextEvaluation(input, {
       changed: true,
       action: 'ACTIVATE',
       completedLeaseId: active?.leaseId || null,
@@ -178,11 +265,11 @@ export function evaluateLeaseQueue(input: {
       nextLeaseStartedAt: input.now,
       nextLeaseEndsAt: new Date(nowMs + nextQueued.durationSeconds * 1000),
       nextPreemptCooldownUntil: input.preemptCooldownUntil,
-    };
+    });
   }
 
   if (active) {
-    return {
+    return withNextEvaluation(input, {
       changed: true,
       action: 'REVERT',
       completedLeaseId: active.leaseId,
@@ -195,10 +282,10 @@ export function evaluateLeaseQueue(input: {
       nextLeaseStartedAt: null,
       nextLeaseEndsAt: null,
       nextPreemptCooldownUntil: input.preemptCooldownUntil,
-    };
+    });
   }
 
-  return {
+  return withNextEvaluation(input, {
     changed: false,
     action: 'KEEP',
     completedLeaseId: null,
@@ -211,15 +298,11 @@ export function evaluateLeaseQueue(input: {
     nextLeaseStartedAt: null,
     nextLeaseEndsAt: null,
     nextPreemptCooldownUntil: input.preemptCooldownUntil,
-  };
+  });
 }
 
 export function needsKernelTick(stream: Pick<StreamRecord, 'kernel'>, now = Date.now()) {
-  return Boolean(
-    stream.kernel.currentLeaseId &&
-      stream.kernel.currentLeaseEndsAt &&
-      stream.kernel.currentLeaseEndsAt.getTime() <= now,
-  );
+  return Boolean(stream.kernel.nextEvaluationAt && stream.kernel.nextEvaluationAt.getTime() <= now);
 }
 
 export async function processStreamKernel(streamId: string, now = new Date()) {
@@ -334,6 +417,7 @@ export async function processStreamKernel(streamId: string, now = new Date()) {
           currentLeaseStartedAt: resolution.nextLeaseStartedAt,
           currentLeaseEndsAt: resolution.nextLeaseEndsAt,
           preemptCooldownUntil: resolution.nextPreemptCooldownUntil,
+          nextEvaluationAt: resolution.nextEvaluationAt,
         },
         overlay: {
           ...overlay,

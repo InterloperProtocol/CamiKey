@@ -4,15 +4,20 @@ export function TopNav() {
   return (
     <div className="topnav">
       <div className="brand">
-        <span className="brand-name">CAMIKey</span>
-        <span className="brand-tag">Pump.fun Livestream Charts Only</span>
+        <Link className="brand-name" href="/">
+          CAMIUP
+        </Link>
+        <span className="brand-tag">Creator Attention Marketplace Interface</span>
       </div>
       <div className="nav-links">
-        <Link className="nav-link" href="/start">
-          Start
+        <Link className="nav-link" href="/marketplace">
+          Marketplace
         </Link>
-        <Link className="nav-link" href="/ads">
-          Ads
+        <Link className="nav-link" href="/start">
+          Streamer
+        </Link>
+        <Link className="nav-link" href="/advertisers">
+          Advertisers
         </Link>
       </div>
     </div>

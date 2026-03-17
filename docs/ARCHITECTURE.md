@@ -100,6 +100,8 @@ The overlay verification flow is nonce-based and requires no manual code entry.
 
 The live index then updates `streams/{streamId}.liveStatus` by matching the registered streamer coin mint.
 
+Public pages read the latest stored live index state. They do not trigger a fresh scrape themselves.
+
 Purchase creation is fail-closed unless the stream is freshly live:
 
 - `isLive === true`
@@ -122,17 +124,35 @@ Dexscreener resolution for the buyer mint is also required before an intent is c
 3. CAMIKey creates a unique deposit wallet for that intent.
 4. Buyer sends the exact SOL amount.
 5. `GET /api/intent/status` polls the deposit address until:
-   - payment is detected
-   - the intent expires
+    - payment is detected
+    - the intent expires
 6. Once payment confirms:
    - the intent is marked confirmed
    - a lease is created and queued
-   - the stream kernel is processed
-   - payout forwarding is attempted
+    - the stream kernel is processed
+    - payout forwarding is attempted
+
+## Scheduled Lifecycle
+
+Core lifecycle work is also available through `POST /api/scheduler/run`.
+
+The scheduler route is intended for a cron or worker and runs four jobs in one pass:
+
+- refresh the Pump.fun live index if it is stale
+- settle pending intents by checking deposit wallets
+- retry payout forwarding for confirmed intents that are not fully forwarded yet
+- process streams whose `kernel.nextEvaluationAt` is due
+
+This keeps fairness, payout retries, and live gating working even if no buyer is actively polling a page.
 
 ## Fairness + Queue Kernel
 
 The overlay always renders `streams/{streamId}.kernel.currentDexscreenerUrl`.
+
+Each stream also stores `kernel.nextEvaluationAt`, which is the earliest timestamp when the server needs
+to reevaluate the queue again. That timestamp is used by both the OBS overlay poll path and the scheduler
+so queued `PRIORITY` leases can preempt exactly when they become eligible, without forcing a Firestore
+query every 500ms.
 
 ### Tier Durations
 

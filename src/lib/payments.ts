@@ -1,6 +1,7 @@
 import {
   Connection,
   Keypair,
+  ParsedTransactionWithMeta,
   PublicKey,
   SystemProgram,
   TransactionMessage,
@@ -20,6 +21,11 @@ export interface DepositPaymentObservation {
   paid: boolean;
   observedLamports: number;
   signature: string | null;
+}
+
+export interface ObservedDepositTransfer {
+  signature: string;
+  lamports: number;
 }
 
 export interface ForwardDepositResult {
@@ -54,26 +60,77 @@ export function decryptDepositWallet(ciphertext: string) {
   return Keypair.fromSecretKey(Uint8Array.from(Buffer.from(secretKey, 'base64')));
 }
 
+function getTransactionAccountAddress(accountKey: ParsedTransactionWithMeta['transaction']['message']['accountKeys'][number]) {
+  return typeof accountKey === 'string' ? accountKey : accountKey.pubkey.toBase58();
+}
+
+export function getIncomingLamportsForAddress(
+  transaction: ParsedTransactionWithMeta | null,
+  depositAddress: string,
+): number {
+  if (!transaction?.meta) {
+    return 0;
+  }
+
+  const index = transaction.transaction.message.accountKeys.findIndex(
+    (accountKey) => getTransactionAccountAddress(accountKey) === depositAddress,
+  );
+  if (index < 0) {
+    return 0;
+  }
+
+  const preBalance = transaction.meta.preBalances[index] ?? 0;
+  const postBalance = transaction.meta.postBalances[index] ?? 0;
+  return Math.max(postBalance - preBalance, 0);
+}
+
+export function selectObservedDepositPayment(input: {
+  minimumLamports: number;
+  transfers: ObservedDepositTransfer[];
+}): DepositPaymentObservation {
+  const observedLamports = input.transfers.reduce((sum, transfer) => sum + transfer.lamports, 0);
+
+  return {
+    paid: observedLamports >= input.minimumLamports,
+    observedLamports,
+    signature: input.transfers[0]?.signature ?? null,
+  };
+}
+
 export async function observeDepositPayment(
   depositAddress: string,
   minimumLamports: number,
 ): Promise<DepositPaymentObservation> {
   const connection = getSolanaConnection();
   const publicKey = new PublicKey(depositAddress);
-  const [observedLamports, signatures] = await Promise.all([
-    connection.getBalance(publicKey, 'confirmed'),
-    connection.getSignaturesForAddress(publicKey, { limit: 10 }, 'confirmed'),
-  ]);
+  const signatures = await connection.getSignaturesForAddress(publicKey, { limit: 25 }, 'confirmed');
+  const confirmedSignatures = signatures
+    .filter((entry) => entry.confirmationStatus === 'confirmed' || entry.confirmationStatus === 'finalized')
+    .map((entry) => entry.signature);
 
-  const signature =
-    signatures.find((entry) => entry.confirmationStatus === 'confirmed' || entry.confirmationStatus === 'finalized')
-      ?.signature || null;
+  if (confirmedSignatures.length === 0) {
+    return {
+      paid: false,
+      observedLamports: 0,
+      signature: null,
+    };
+  }
 
-  return {
-    paid: observedLamports >= minimumLamports,
-    observedLamports,
-    signature,
-  };
+  const parsedTransactions = await connection.getParsedTransactions(confirmedSignatures, {
+    commitment: 'confirmed',
+    maxSupportedTransactionVersion: 0,
+  });
+  const transfers = confirmedSignatures
+    .map((signature, index) => ({
+      signature,
+      lamports: getIncomingLamportsForAddress(parsedTransactions[index] || null, depositAddress),
+    }))
+    .filter((transfer) => transfer.lamports > 0);
+
+  return selectObservedDepositPayment({
+    minimumLamports,
+    transfers,
+  });
 }
 
 async function estimateTransferFeeLamports(

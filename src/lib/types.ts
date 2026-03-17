@@ -43,6 +43,7 @@ export interface StreamRecord {
     currentLeaseStartedAt: Date | null;
     currentLeaseEndsAt: Date | null;
     preemptCooldownUntil: Date | null;
+    nextEvaluationAt: Date | null;
   };
 }
 
@@ -104,6 +105,7 @@ export interface IntentRecord {
   feeLamports: number;
   forwardTxSignature: string | null;
   payoutFailureReason: string | null;
+  payoutProcessingAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

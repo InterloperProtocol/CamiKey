@@ -2,13 +2,11 @@ import { notFound } from 'next/navigation';
 import { StreamPageClient } from '@/components/stream-page-client';
 import { TopNav } from '@/components/top-nav';
 import { getPurchaseGateStatus } from '@/lib/gating';
-import { maybeRefreshLiveIndex } from '@/lib/live-index';
 import { getPricing } from '@/lib/pricing';
 import { getRecentStreamEvents, getStreamBySlug } from '@/lib/streams';
 
 export default async function SlugPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  await maybeRefreshLiveIndex().catch(() => null);
   const stream = await getStreamBySlug(slug);
 
   if (!stream) {

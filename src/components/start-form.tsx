@@ -57,9 +57,9 @@ export function StartForm() {
     <div className="card panel stack">
       <div>
         <div className="eyebrow">Streamer Registration</div>
-        <h1 style={{ fontSize: '2rem', margin: '10px 0 12px' }}>Register your Pump.fun stream.</h1>
+        <h1 style={{ fontSize: '2rem', margin: '10px 0 12px' }}>Register your creator market stream.</h1>
         <p className="subtitle">
-          CAMIKey verifies the streamer coin directly against Pump.fun metadata before creating the
+          CAMIUP verifies the streamer coin directly against Pump.fun metadata before creating the
           overlay. We only support live Pump.fun streams and Dexscreener chart swaps.
         </p>
       </div>
