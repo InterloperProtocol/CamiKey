@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { TopNav } from '@/components/top-nav';
 
@@ -36,7 +37,14 @@ export default function HomePage() {
         </div>
 
         <div className="hero-visual">
-          <img alt="Social Futures animation" className="hero-gif" src="/social-futures.gif" />
+          <Image
+            alt="Social Futures animation"
+            className="hero-gif"
+            height={768}
+            priority
+            src="/social-futures.gif"
+            width={768}
+          />
         </div>
       </section>
     </main>

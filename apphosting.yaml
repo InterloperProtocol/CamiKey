@@ -2,17 +2,6 @@ runConfig:
   minInstances: 0
 
 env:
-  - variable: FIREBASE_PROJECT_ID
-    value: camikey
-    availability:
-      - RUNTIME
-
-  - variable: NEXT_PUBLIC_APP_URL
-    value: http://localhost:3000
-    availability:
-      - BUILD
-      - RUNTIME
-
   - variable: SOLANA_RPC_URL
     secret: SOLANA_RPC_URL
     availability:

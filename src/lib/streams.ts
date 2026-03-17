@@ -28,6 +28,10 @@ export interface RegisterStreamInput {
   desiredSlug: string;
 }
 
+export interface RegisterStreamOptions {
+  appUrl?: string;
+}
+
 export interface RegisterStreamResult {
   streamId: string;
   slug: string;
@@ -105,7 +109,10 @@ export function normalizeSlug(input: string): string {
   return slugSchema.parse(input.toLowerCase());
 }
 
-export async function registerStream(input: RegisterStreamInput): Promise<RegisterStreamResult> {
+export async function registerStream(
+  input: RegisterStreamInput,
+  options: RegisterStreamOptions = {},
+): Promise<RegisterStreamResult> {
   const parsed = registrationSchema.parse({
     deployerWallet: input.deployerWallet,
     streamerCoinMint: input.streamerCoinMint,
@@ -216,7 +223,7 @@ export async function registerStream(input: RegisterStreamInput): Promise<Regist
     });
   });
 
-  const appUrl = getAppUrl();
+  const appUrl = options.appUrl || getAppUrl();
 
   return {
     streamId,
