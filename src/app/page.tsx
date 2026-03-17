@@ -7,7 +7,7 @@ const REVENUE_WALLET = 'D1CRgh1Ty3yjDwN9CkwtsRWKmsmKQ2BbRbtKvCTfAN8Z';
 export default function HomePage() {
   return (
     <main className="shell">
-      <TopNav compact />
+      <TopNav />
 
       <section className="hero hero-home">
         <div className="card panel stack hero-copy">

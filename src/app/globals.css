@@ -56,36 +56,20 @@ input {
 
 .topnav {
   align-items: center;
-  backdrop-filter: blur(14px);
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid var(--line);
+  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(17, 17, 17, 0.08);
   border-radius: 999px;
+  box-shadow:
+    0 10px 30px rgba(17, 17, 17, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   display: flex;
   justify-content: space-between;
   margin-bottom: 28px;
   padding: 14px 18px;
   position: sticky;
-  top: 18px;
-  z-index: 10;
-}
-
-.brand {
-  display: grid;
-  gap: 4px;
-}
-
-.brand-name {
-  font-size: 1.18rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.brand-tag {
-  color: var(--soft-text);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  top: 14px;
+  z-index: 40;
 }
 
 .nav-links {
@@ -95,12 +79,27 @@ input {
 }
 
 .nav-link {
-  border: 1px solid var(--line);
+  align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(17, 17, 17, 0.08);
   border-radius: 999px;
   color: var(--muted);
+  display: inline-flex;
   font-size: 12px;
+  justify-content: center;
   padding: 10px 14px;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
   text-transform: uppercase;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 22px rgba(17, 17, 17, 0.08);
+  transform: translateY(-1px);
 }
 
 .topnav-compact {
@@ -131,19 +130,21 @@ input {
   align-items: center;
 }
 
-.nav-link-compact {
-  background: #111111;
-  border-color: #111111;
-  color: #ffffff;
-}
-
 .nav-link-icon {
   align-items: center;
   display: inline-flex;
-  font-weight: 700;
   justify-content: center;
-  min-width: 46px;
+  min-height: 42px;
+  min-width: 42px;
+  padding: 0;
   text-align: center;
+}
+
+.nav-icon {
+  display: block;
+  filter: brightness(0) saturate(100%);
+  height: 18px;
+  width: 18px;
 }
 
 .hero {
@@ -496,17 +497,17 @@ input {
   align-items: center;
   background: radial-gradient(circle at top, rgba(0, 0, 0, 0.04), transparent 58%);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 32px;
   display: flex;
   justify-content: center;
   min-height: 100%;
   overflow: hidden;
-  padding: 28px;
+  padding: 18px;
 }
 
 .hero-gif {
-  border: 1px solid var(--line);
-  border-radius: 28px;
+  border: 0;
+  border-radius: 24px;
   display: block;
   max-height: min(72vh, 720px);
   max-width: 100%;
