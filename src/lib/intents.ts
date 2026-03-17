@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createId } from '@/lib/ids';
 import { getLeaseById, needsKernelTick, processStreamKernel } from '@/lib/kernel';
+import { maybeRefreshLiveIndex } from '@/lib/live-index';
 import { resolveDexscreenerUrl } from '@/lib/dexscreener';
 import {
   createDepositWallet,
@@ -89,12 +90,22 @@ export async function createIntent(input: z.infer<typeof createIntentSchema>) {
   const parsed = createIntentSchema.parse(input);
   const now = new Date();
 
-  const stream = await getStreamById(parsed.streamId);
+  let stream = await getStreamById(parsed.streamId);
   if (!stream) {
     throw new Error('Stream not found.');
   }
 
-  assertPurchaseAllowed(stream, now.getTime());
+  try {
+    assertPurchaseAllowed(stream, now.getTime());
+  } catch {
+    await maybeRefreshLiveIndex(true);
+    stream = await getStreamById(parsed.streamId);
+    if (!stream) {
+      throw new Error('Stream not found.');
+    }
+
+    assertPurchaseAllowed(stream, now.getTime());
+  }
 
   const pricingSnapshot = getPricing(now);
   const pricing = getPricingTier(parsed.tier, now);

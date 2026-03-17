@@ -103,6 +103,49 @@ input {
   text-transform: uppercase;
 }
 
+.topnav-compact {
+  padding: 10px 14px;
+}
+
+.brand-mark {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.01));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  display: inline-flex;
+  height: 64px;
+  justify-content: center;
+  overflow: hidden;
+  width: 64px;
+}
+
+.brand-mark-image {
+  border-radius: 14px;
+  display: block;
+  height: 56px;
+  object-fit: cover;
+  width: 56px;
+}
+
+.nav-links-compact {
+  align-items: center;
+}
+
+.nav-link-compact {
+  background: #111111;
+  border-color: #111111;
+  color: #ffffff;
+}
+
+.nav-link-icon {
+  align-items: center;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-width: 46px;
+  text-align: center;
+}
+
 .hero {
   display: grid;
   gap: 24px;
@@ -111,7 +154,7 @@ input {
 
 .hero-home {
   align-items: stretch;
-  min-height: calc(100vh - 170px);
+  min-height: calc(100vh - 190px);
 }
 
 .hero-secondary {
@@ -276,6 +319,36 @@ input {
 .button.secondary.active {
   border-color: #111111;
   box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.08);
+}
+
+.tier-button {
+  justify-content: flex-start;
+}
+
+.tier-button.active {
+  transform: translateY(-1px) scale(1.01);
+}
+
+.tier-button-base.active {
+  background: linear-gradient(135deg, #050505, #222222);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+}
+
+.tier-button-priority {
+  background: linear-gradient(135deg, #3f3010, #8e6a11);
+  border-color: #a77b17;
+  color: #fff8dc;
+}
+
+.tier-button-priority:hover {
+  box-shadow: 0 18px 30px rgba(143, 106, 17, 0.28);
+}
+
+.tier-button-priority.active {
+  background: linear-gradient(135deg, #6f5200, #d1a11d);
+  border-color: #f2c94c;
+  box-shadow: 0 18px 34px rgba(209, 161, 29, 0.3);
+  color: #1d1400;
 }
 
 .button-row {
@@ -445,7 +518,7 @@ input {
   align-items: center;
   display: flex;
   gap: 20px;
-  justify-content: space-between;
+  justify-content: center;
   margin-top: 24px;
 }
 
@@ -489,15 +562,11 @@ input {
   margin: 0;
 }
 
-.footer-copy {
-  display: grid;
-  gap: 8px;
-}
-
 .footer-links {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: center;
 }
 
 .overlay-root {

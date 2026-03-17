@@ -122,7 +122,7 @@ export function StreamPageClient({
             message: 'No recent lease activations or purchases yet.',
             createdAt: new Date().toISOString(),
           },
-      ];
+        ];
 
   const currentVerificationFresh = currentVerifiedAt
     ? Date.now() - new Date(currentVerifiedAt).getTime() < 12 * 60 * 60 * 1000
@@ -315,7 +315,7 @@ export function StreamPageClient({
         <div className="ticker-track">
           {tickerEvents.map((event, index) => (
             <span className="ticker-item" key={`${event.eventId}-${index}`}>
-              {event.message} · {formatTimestamp(event.createdAt)}
+              {event.message} - {formatTimestamp(event.createdAt)}
             </span>
           ))}
         </div>
@@ -407,18 +407,18 @@ export function StreamPageClient({
 
             <div className="tier-grid">
               <button
-                className={`button secondary ${purchaseTier === 'BASE' ? 'active' : ''}`}
+                className={`button tier-button tier-button-base ${purchaseTier === 'BASE' ? 'active' : ''}`}
                 onClick={() => setPurchaseTier('BASE')}
                 type="button"
               >
-                BASE · {pricing.base.amountSol} SOL · {pricing.base.displaySeconds}s
+                BASE - {pricing.base.amountSol} SOL - {pricing.base.displaySeconds}s
               </button>
               <button
-                className={`button secondary ${purchaseTier === 'PRIORITY' ? 'active' : ''}`}
+                className={`button tier-button tier-button-priority ${purchaseTier === 'PRIORITY' ? 'active' : ''}`}
                 onClick={() => setPurchaseTier('PRIORITY')}
                 type="button"
               >
-                PRIORITY · {pricing.priority.amountSol} SOL · {pricing.priority.displaySeconds}s
+                PRIORITY - {pricing.priority.amountSol} SOL - {pricing.priority.displaySeconds}s
               </button>
             </div>
 
@@ -482,11 +482,11 @@ export function StreamPageClient({
                 {intentStatus ? (
                   <div className="status info">
                     Payment status: {intentStatus.status}
-                    {intentStatus.payoutStatus ? ` · Payout: ${intentStatus.payoutStatus}` : ''}
-                    {intentStatus.leaseStatus ? ` · Lease: ${intentStatus.leaseStatus}` : ''}
-                    {intentStatus.leaseEndsAt ? ` · Ends: ${formatTimestamp(intentStatus.leaseEndsAt)}` : ''}
-                    {intentStatus.forwardTxSignature ? ` · Tx: ${intentStatus.forwardTxSignature}` : ''}
-                    {intentStatus.payoutFailureReason ? ` · Retry: ${intentStatus.payoutFailureReason}` : ''}
+                    {intentStatus.payoutStatus ? ` - Payout: ${intentStatus.payoutStatus}` : ''}
+                    {intentStatus.leaseStatus ? ` - Lease: ${intentStatus.leaseStatus}` : ''}
+                    {intentStatus.leaseEndsAt ? ` - Ends: ${formatTimestamp(intentStatus.leaseEndsAt)}` : ''}
+                    {intentStatus.forwardTxSignature ? ` - Tx: ${intentStatus.forwardTxSignature}` : ''}
+                    {intentStatus.payoutFailureReason ? ` - Retry: ${intentStatus.payoutFailureReason}` : ''}
                   </div>
                 ) : null}
               </div>

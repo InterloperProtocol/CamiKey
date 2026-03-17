@@ -1,24 +1,22 @@
 import Link from 'next/link';
 import { TopNav } from '@/components/top-nav';
 import { getPurchaseGateStatus } from '@/lib/gating';
-import { getCurrentLiveIndex } from '@/lib/live-index';
-import { getLiveStreams } from '@/lib/streams';
+import { maybeRefreshLiveIndex } from '@/lib/live-index';
+import { getAllStreams } from '@/lib/streams';
 
 function gateLabel(value: boolean, truthy: string, falsy: string) {
   return value ? truthy : falsy;
 }
 
 export default async function MarketplacePage() {
-  const liveIndex = (await getCurrentLiveIndex()) || {
-    indexedAt: new Date(0),
-    refreshIntervalMs: 45_000,
-    streams: [],
-  };
-  const streams = await getLiveStreams();
+  const liveIndex = await maybeRefreshLiveIndex();
+  const streams = await getAllStreams();
   const rows = streams.map((stream) => ({
     stream,
     gate: getPurchaseGateStatus(stream),
   }));
+  const visibleRows = rows.filter(({ gate }) => gate.liveFresh);
+  const eligibleCount = rows.filter(({ gate }) => gate.canPurchase).length;
 
   return (
     <main className="shell">
@@ -36,11 +34,11 @@ export default async function MarketplacePage() {
           <div className="pill-row">
             <span className="pill">Indexed: {liveIndex.indexedAt.toLocaleString()}</span>
             <span className="pill">Live streams seen: {liveIndex.streams.length}</span>
-            <span className="pill">Eligible streams: {rows.length}</span>
+            <span className="pill">Eligible streams: {eligibleCount}</span>
           </div>
         </div>
 
-        {rows.length === 0 ? (
+        {visibleRows.length === 0 ? (
           <div className="card panel stack">
             <div className="eyebrow">No Matches</div>
             <p className="subtitle">
@@ -50,7 +48,7 @@ export default async function MarketplacePage() {
           </div>
         ) : (
           <div className="ads-grid">
-            {rows.map(({ stream, gate }) => (
+            {visibleRows.map(({ stream, gate }) => (
               <article className="card panel stack" key={stream.streamId}>
                 <div className="stream-card-header">
                   <div>

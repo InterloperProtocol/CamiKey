@@ -1,7 +1,8 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getCronSecret } from '@/lib/env';
 import { getDb } from '@/lib/firestore';
-import { fetchPumpLiveEntries } from '@/lib/pumpfun';
+import { isHeartbeatFresh, isVerificationFresh } from '@/lib/overlay';
+import { fetchPumpCoinMetadata, fetchPumpLiveEntries } from '@/lib/pumpfun';
 import { getAllStreams, hydrateStreamRecord } from '@/lib/streams';
 import { LiveIndexRecord, PumpLiveEntry, StreamRecord } from '@/lib/types';
 
@@ -58,12 +59,48 @@ export async function getCurrentLiveIndex() {
 
 async function updateStreamLiveStatuses(streams: StreamRecord[], liveEntries: PumpLiveEntry[], indexedAt: Date) {
   const liveByMint = new Map(liveEntries.map((entry) => [entry.mint, entry]));
+  const fallbackChecks = await Promise.all(
+    streams.map(async (stream) => {
+      if (liveByMint.has(stream.streamerCoinMint)) {
+        return [stream.streamId, null] as const;
+      }
+
+      const overlayLooksActive =
+        isHeartbeatFresh(stream.overlay.lastHeartbeatAt, indexedAt.getTime()) &&
+        isVerificationFresh(stream.overlay.verifiedAt, indexedAt.getTime());
+
+      if (!overlayLooksActive) {
+        return [stream.streamId, null] as const;
+      }
+
+      const pumpCoin = await fetchPumpCoinMetadata(stream.streamerCoinMint);
+      if (!pumpCoin?.isCurrentlyLive) {
+        return [stream.streamId, null] as const;
+      }
+
+      return [
+        stream.streamId,
+        {
+          mint: stream.streamerCoinMint,
+          creatorAddress: stream.deployerWallet,
+          viewerCount: Math.max(stream.liveStatus.viewers, 1),
+          linkUrl: `/coin/${stream.streamerCoinMint}`,
+          symbol: stream.streamerCoinSymbol,
+          title: stream.streamerCoinName,
+          isLive: true,
+        } satisfies PumpLiveEntry,
+      ] as const;
+    }),
+  );
+  const fallbackLiveByStreamId = new Map(
+    fallbackChecks.flatMap((entry) => (entry[1] ? [[entry[0], entry[1]]] : [])),
+  );
   const db = getDb();
   let batch = db.batch();
   let operations = 0;
 
   for (const stream of streams) {
-    const liveEntry = liveByMint.get(stream.streamerCoinMint);
+    const liveEntry = liveByMint.get(stream.streamerCoinMint) || fallbackLiveByStreamId.get(stream.streamId);
     const ref = db.collection('streams').doc(stream.streamId);
 
     batch.set(
