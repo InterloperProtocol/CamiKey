@@ -16,11 +16,11 @@ export default function AdvertisersPage() {
           </p>
 
           <div className="hero-actions">
-            <Link className="button" href="/marketplace">
-              Open Marketplace
+            <Link className="button" href="/live">
+              Open Pump.funAds
             </Link>
-            <Link className="button secondary" href="/ads">
-              Legacy Ads Route
+            <Link className="button secondary" href="/marketplace">
+              Open Marketplace
             </Link>
           </div>
         </div>

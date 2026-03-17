@@ -27,14 +27,39 @@ export default async function MarketplacePage() {
           <div className="eyebrow">Marketplace</div>
           <h1 style={{ fontSize: '2.3rem', margin: '10px 0 12px' }}>Creator Attention Marketplace</h1>
           <p className="subtitle">
-            Live streams surface here only after Pump.fun indexing, overlay heartbeat checks, and
-            active verification. Buyers can step directly into any eligible stream page from this
-            board.
+            Buyer-safe live stream board. CAMIKey waits for Pump.fun live status, overlay heartbeat,
+            and active verification before a slot is treated as purchasable.
           </p>
           <div className="pill-row">
             <span className="pill">Indexed: {liveIndex.indexedAt.toLocaleString()}</span>
             <span className="pill">Live streams seen: {liveIndex.streams.length}</span>
             <span className="pill">Eligible streams: {eligibleCount}</span>
+          </div>
+          <div className="button-row">
+            <Link className="button" href="/live">
+              Open Pump.funAds
+            </Link>
+            <Link className="button secondary" href="/start">
+              Register as streamer
+            </Link>
+          </div>
+        </div>
+
+        <div className="card panel stack">
+          <div className="eyebrow">Buyer Flow</div>
+          <div className="faq-grid">
+            <article className="faq-item">
+              <h3 className="faq-question">Scan the live board</h3>
+              <p className="faq-answer">Find a token and streamer that are actually live right now instead of guessing from stale pages.</p>
+            </article>
+            <article className="faq-item">
+              <h3 className="faq-question">Open the stream page</h3>
+              <p className="faq-answer">The stream page is the buy panel. It shows verification status, heartbeat freshness, and current tier pricing.</p>
+            </article>
+            <article className="faq-item">
+              <h3 className="faq-question">Create the intent</h3>
+              <p className="faq-answer">Enter only the buyer token mint, then send the exact SOL amount to the generated address to lock the placement.</p>
+            </article>
           </div>
         </div>
 
