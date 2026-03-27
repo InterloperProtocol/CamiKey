@@ -27,8 +27,49 @@ function unescapePumpJson(payload: string): string {
     .replace(/\\u003e/g, '>');
 }
 
+function normalizePumpHtmlPayload(payload: string): string {
+  return payload
+    .replace(/\\"/g, '"')
+    .replace(/\\u0026/g, '&')
+    .replace(/\\u003c/g, '<')
+    .replace(/\\u003e/g, '>');
+}
+
 function decodePumpText(payload: string): string {
   return unescapePumpJson(`"${payload}"`).slice(1, -1);
+}
+
+export function parsePumpLiveEntries(html: string): PumpLiveEntry[] {
+  const searchableHtml = normalizePumpHtmlPayload(html);
+  const streams = new Map<string, PumpLiveEntry>();
+
+  for (const match of searchableHtml.matchAll(LIVE_ENTRY_PATTERN)) {
+    const mint = match.groups?.mint;
+    const creatorAddress = match.groups?.creator;
+    const linkUrl = match.groups?.linkUrl;
+
+    if (!mint || !creatorAddress || !linkUrl) {
+      continue;
+    }
+
+    const viewerCount = Number(match.groups?.viewers || 0);
+    const isLive = match.groups?.isLive === 'true';
+    if (!isLive) {
+      continue;
+    }
+
+    streams.set(mint, {
+      mint,
+      creatorAddress,
+      viewerCount,
+      linkUrl,
+      symbol: decodePumpText(match.groups?.symbol || mint),
+      title: decodePumpText(match.groups?.title || mint),
+      isLive,
+    });
+  }
+
+  return Array.from(streams.values()).sort((left, right) => right.viewerCount - left.viewerCount);
 }
 
 export async function fetchPumpCoinMetadata(mint: string): Promise<PumpCoinMetadata | null> {
@@ -84,33 +125,5 @@ export async function fetchPumpLiveEntries(): Promise<PumpLiveEntry[]> {
   }
 
   const html = await response.text();
-  const streams = new Map<string, PumpLiveEntry>();
-
-  for (const match of html.matchAll(LIVE_ENTRY_PATTERN)) {
-    const mint = match.groups?.mint;
-    const creatorAddress = match.groups?.creator;
-    const linkUrl = match.groups?.linkUrl;
-
-    if (!mint || !creatorAddress || !linkUrl) {
-      continue;
-    }
-
-    const viewerCount = Number(match.groups?.viewers || 0);
-    const isLive = match.groups?.isLive === 'true';
-    if (!isLive) {
-      continue;
-    }
-
-    streams.set(mint, {
-      mint,
-      creatorAddress,
-      viewerCount,
-      linkUrl,
-      symbol: decodePumpText(match.groups?.symbol || mint),
-      title: decodePumpText(match.groups?.title || mint),
-      isLive,
-    });
-  }
-
-  return Array.from(streams.values()).sort((left, right) => right.viewerCount - left.viewerCount);
+  return parsePumpLiveEntries(html);
 }
