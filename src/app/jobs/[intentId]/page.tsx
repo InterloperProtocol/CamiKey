@@ -5,6 +5,7 @@ import { getIntentStatusSnapshot } from '@/lib/intent-status';
 
 export default async function JobPage({ params }: { params: Promise<{ intentId: string }> }) {
   const { intentId } = await params;
+  const renderedAt = new Date().toISOString();
   const status = await getIntentStatusSnapshot(intentId);
 
   if (!status) {
@@ -14,7 +15,7 @@ export default async function JobPage({ params }: { params: Promise<{ intentId: 
   return (
     <main className="shell">
       <TopNav />
-      <JobPageClient initialStatus={status} />
+      <JobPageClient initialStatus={status} renderedAt={renderedAt} />
     </main>
   );
 }

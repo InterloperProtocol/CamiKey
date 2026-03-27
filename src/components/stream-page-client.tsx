@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 interface StreamPageClientProps {
   streamId: string;
   slug: string;
+  renderedAt: string;
   deployerWallet: string;
   streamerCoinMint: string;
   defaultDexscreenerUrl: string;
@@ -58,6 +59,7 @@ function formatTimestamp(value: string | null): string {
 export function StreamPageClient({
   streamId,
   slug,
+  renderedAt,
   deployerWallet,
   streamerCoinMint,
   defaultDexscreenerUrl,
@@ -80,7 +82,7 @@ export function StreamPageClient({
   const [buyerMint, setBuyerMint] = useState('');
   const [purchaseState, setPurchaseState] = useState<PurchaseUiState>('idle');
   const [purchaseMessage, setPurchaseMessage] = useState<string | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => new Date(renderedAt).getTime());
 
   const tickerEvents =
     events.length > 0

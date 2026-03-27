@@ -8,6 +8,7 @@ import { getRecentStreamEvents, getStreamBySlug } from '@/lib/streams';
 
 export default async function SlugPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const renderedAt = new Date().toISOString();
   await maybeRefreshLiveIndex();
   const stream = await getStreamBySlug(slug);
 
@@ -46,6 +47,7 @@ export default async function SlugPage({ params }: { params: Promise<{ slug: str
           },
         }}
         purchaseReasons={gate.reasons}
+        renderedAt={renderedAt}
         slug={stream.slug}
         streamId={stream.streamId}
         streamerCoinMint={stream.streamerCoinMint}

@@ -6,6 +6,7 @@ import { IntentStatusSnapshot } from '@/lib/intent-status';
 
 interface JobPageClientProps {
   initialStatus: IntentStatusSnapshot;
+  renderedAt: string;
 }
 
 function formatTimestamp(value: string | null): string {
@@ -85,10 +86,10 @@ function getStatusSummary(status: IntentStatusSnapshot) {
   return 'Awaiting payment';
 }
 
-export function JobPageClient({ initialStatus }: JobPageClientProps) {
+export function JobPageClient({ initialStatus, renderedAt }: JobPageClientProps) {
   const [status, setStatus] = useState(initialStatus);
   const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [nowMs, setNowMs] = useState(() => new Date(renderedAt).getTime());
   const statusRef = useRef(initialStatus);
 
   useEffect(() => {
